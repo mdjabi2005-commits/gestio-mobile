@@ -81,6 +81,22 @@ class PyodideBridge {
         })
     }
 
+    /** Appelle une fonction de api.py */
+    async callApi<T = unknown>(functionName: string, args: unknown[] = []): Promise<T> {
+        if (!this.worker || this.status !== "ready") {
+            throw new Error("Pyodide not ready")
+        }
+
+        const id = nextId()
+        return new Promise((resolve, reject) => {
+            this.pendingRequests.set(id, {
+                resolve: resolve as (data: unknown) => void,
+                reject,
+            })
+            this.worker!.postMessage({ id, type: "call", function: functionName, args })
+        })
+    }
+
     /** Retourne le status actuel */
     getStatus(): PyodideStatus {
         return this.status
