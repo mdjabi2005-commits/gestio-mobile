@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .logo {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        p {
+            font-size: 1rem;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+        }
+
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status {
+            margin-top: 1.5rem;
+            font-size: 0.875rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">💰</div>
+        <h1>Gestio</h1>
+        <p>Gestion financière personnelle</p>
+        <div class="loader"></div>
+        <div class="status" id="status">Initialisation...</div>
+    </div>
+
+    <script>
+        // Ce fichier est remplacé par l'app React une fois chargée
+        // Il sert de splash screen pendant le chargement de Pyodide
+        window.addEventListener('load', () => {
+            const status = document.getElementById('status')
+            
+            // Écoutons les messages du worker pour le status
+            if (window.pyodideBridge) {
+                window.pyodideBridge.onStatusChange((s) => {
+                    const statusMap = {
+                        'loading': 'Chargement de Python...',
+                        'ready': 'Prêt !',
+                        'error': 'Erreur de chargement'
+                    }
+                    status.textContent = statusMap[s] || s
+                })
+            }
+        })
+    </script>
+</body>
+</html>
