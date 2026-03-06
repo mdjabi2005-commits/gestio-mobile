@@ -6,16 +6,10 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
-    "pandas",
-    "streamlit",
     "numpy",
-    "plotly",
-    "matplotlib",
     "Pillow",
-    "opencv-python",
     "pyyaml",
     "pdfminer.six",
-    "rapidocr-onnxruntime",
     "python-dateutil",
     "psutil",
     "pydantic",
@@ -23,7 +17,6 @@ dependencies = [
     "pyjwt",
     "cryptography",
     "python-dotenv",
-    "ollama>=0.6.1",
     "groq>=1.0.0",
 ]
 

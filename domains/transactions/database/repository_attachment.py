@@ -4,12 +4,9 @@ Repository pour les pièces jointes des transactions.
 
 import logging
 import sqlite3
-from typing import Optional
-
-import pandas as pd
+from typing import Optional, List
 
 from shared.database.connection import get_db_connection, close_connection
-from shared.utils import convert_attachment_df, create_empty_attachment_df
 from .model_attachment import TransactionAttachment
 
 logger = logging.getLogger(__name__)
@@ -20,19 +17,29 @@ class AttachmentRepository:
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path
 
-    def get_all_attachments(self) -> pd.DataFrame:
+    def _fetch_all(self, query: str, params: tuple = ()) -> List[dict]:
+        """Exécute une requête SELECT et retourne les résultats comme liste de dictionnaires."""
         conn = None
         try:
             conn = get_db_connection(db_path=self.db_path)
-            df = pd.read_sql_query("SELECT * FROM transaction_attachments", conn)
-            if df.empty:
-                return create_empty_attachment_df()
-            return convert_attachment_df(df)
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+
+            columns = [description[0] for description in cursor.description]
+            results = []
+            for row in cursor.fetchall():
+                results.append(dict(zip(columns, row)))
+
+            return results
         except sqlite3.Error as e:
-            logger.error(f"Erreur get_all_attachments: {e}")
-            return create_empty_attachment_df()
+            logger.error(f"Erreur SQL: {e}")
+            return []
         finally:
             close_connection(conn)
+
+    def get_all_attachments(self) -> List[dict]:
+        """Récupère toutes les pièces jointes."""
+        return self._fetch_all("SELECT * FROM transaction_attachments ORDER BY upload_date DESC")
 
 
     def add_attachment(self, attachment: TransactionAttachment) -> Optional[int]:
