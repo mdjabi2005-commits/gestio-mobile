@@ -11,8 +11,6 @@ import logging
 from datetime import date
 from typing import Optional, Union, List
 
-import pandas as pd
-
 from ..database.model import Transaction
 from ..database.repository import transaction_repository
 
@@ -33,8 +31,8 @@ class TransactionService:
     # LECTURE
     # ----------------------------------------------------------
 
-    def get_all(self) -> pd.DataFrame:
-        """Récupère toutes les transactions (colonnes FR)."""
+    def get_all(self) -> List[dict]:
+        """Récupère toutes les transactions (liste de dictionnaires)."""
         return self.repository.get_all
 
     def get_filtered(
@@ -42,9 +40,9 @@ class TransactionService:
             start_date: Optional[date] = None,
             end_date: Optional[date] = None,
             category: Optional[str] = None,
-    ) -> pd.DataFrame:
+    ) -> List[dict]:
         """
-        Récupère les transactions filtrées (colonnes FR).
+        Récupère les transactions filtrées (liste de dictionnaires).
 
         Colonnes retournées : id, type, categorie, sous_categorie, description,
                               montant, date, source, recurrence, date_fin,
@@ -131,14 +129,14 @@ class TransactionService:
             start_date: Optional[date] = None,
             end_date: Optional[date] = None,
             category: Optional[str] = None,
-    ) -> pd.DataFrame:
+    ) -> List[dict]:
         """
         .. deprecated::
             Utiliser ``get_filtered()`` à la place.
             Cette méthode existait pour mapper FR→EN, ce mapping est supprimé.
         """
         logger.warning(
-            "get_filtered_transactions_df() est dépréciée. Utiliser get_filtered() (colonnes FR)."
+            "get_filtered_transactions_df() est dépréciée. Utiliser get_filtered() (list[dict])."
         )
         return self.get_filtered(start_date=start_date, end_date=end_date, category=category)
 

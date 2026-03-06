@@ -8,10 +8,7 @@ import sqlite3
 from datetime import date
 from typing import List, Optional, Dict
 
-import pandas as pd
-
 from shared.database.connection import get_db_connection, close_connection
-from shared.utils import create_empty_transaction_df, convert_transaction_df
 from .model import Transaction
 
 logger = logging.getLogger(__name__)
@@ -23,23 +20,36 @@ class TransactionRepository:
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path
 
-
-
-    def get_all(self) -> pd.DataFrame:
-        """Récupère toutes les transactions."""
+    def _fetch_all(self, query: str, params: tuple = ()) -> List[dict]:
+        """
+        Exécute une requête SELECT et retourne les résultats comme liste de dictionnaires.
+        """
         conn = None
         try:
             conn = get_db_connection(db_path=self.db_path)
-            query = "SELECT * FROM transactions ORDER BY date DESC"
-            df = pd.read_sql_query(query, conn)
+            cursor = conn.cursor()
+            cursor.execute(query, params)
 
-            return convert_transaction_df(df)
+            # Récupérer les noms de colonnes
+            columns = [description[0] for description in cursor.description]
+
+            # Convertir chaque ligne en dictionnaire
+            results = []
+            for row in cursor.fetchall():
+                results.append(dict(zip(columns, row)))
+
+            return results
 
         except sqlite3.Error as e:
             logger.error(f"Erreur SQL: {e}")
-            return create_empty_transaction_df()
+            return []
         finally:
             close_connection(conn)
+
+    def get_all(self) -> List[dict]:
+        """Récupère toutes les transactions."""
+        query = "SELECT * FROM transactions ORDER BY date DESC"
+        return self._fetch_all(query)
 
     @staticmethod
     def _to_validated_db_dict(transaction) -> dict:
@@ -188,41 +198,26 @@ class TransactionRepository:
             close_connection(conn)
 
     def get_filtered(self, start_date: Optional[date] = None, end_date: Optional[date] = None,
-                     category: Optional[str] = None) -> pd.DataFrame:
+                     category: Optional[str] = None) -> List[dict]:
         """Récupère les transactions filtrées."""
-        conn = None
-        try:
-            conn = get_db_connection(db_path=self.db_path)
+        query = "SELECT * FROM transactions WHERE 1=1"
+        params = []
 
-            query = "SELECT * FROM transactions WHERE 1=1"
-            params = []
+        if start_date:
+            query += " AND date >= ?"
+            params.append(start_date.isoformat())
 
-            if start_date:
-                query += " AND date >= ?"
-                params.append(start_date.isoformat())
+        if end_date:
+            query += " AND date <= ?"
+            params.append(end_date.isoformat())
 
-            if end_date:
-                query += " AND date <= ?"
-                params.append(end_date.isoformat())
+        if category:
+            query += " AND categorie = ?"
+            params.append(category)
 
-            if category:
-                query += " AND categorie = ?"
-                params.append(category)
+        query += " ORDER BY date DESC"
 
-            query += " ORDER BY date DESC"
-
-            df = pd.read_sql_query(query, conn, params=params)
-
-            if df.empty:
-                return create_empty_transaction_df()
-
-            return convert_transaction_df(df)
-
-        except sqlite3.Error as e:
-            logger.error(f"Erreur get_filtered: {e}")
-            return create_empty_transaction_df()
-        finally:
-            close_connection(conn)
+        return self._fetch_all(query, tuple(params))
 
     def delete(self, transaction_id: int | List[int]) -> bool:
         """
