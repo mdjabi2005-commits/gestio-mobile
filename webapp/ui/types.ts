@@ -3,7 +3,7 @@
 
 import React from "react"
 
-export type TabId = "home" | "comptes" | "scan" | "budgets" | "settings"
+export type TabId = "home" | "scan" | "settings"
 
 export interface Transaction {
     id: string

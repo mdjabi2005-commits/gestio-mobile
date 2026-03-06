@@ -1,16 +1,14 @@
-// shared/ui/shell/tab_bar.tsx
+// webapp/ui/shell/tab_bar.tsx
 "use client"
 
 import React from "react"
-import { LayoutGrid, Landmark, Camera, Wallet, Settings } from "lucide-react"
+import { LayoutGrid, Camera, Settings } from "lucide-react"
 import type { TabId } from "@/ui/types"
 
 export function TabBar({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: (tab: TabId) => void }) {
     const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
         { id: "home", label: "Accueil", icon: LayoutGrid },
-        { id: "comptes", label: "Comptes", icon: Landmark },
         { id: "scan", label: "Scan", icon: Camera },
-        { id: "budgets", label: "Budgets", icon: Wallet },
         { id: "settings", label: "Réglages", icon: Settings },
     ]
 
