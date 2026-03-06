@@ -1,6 +1,8 @@
 // webapp/frontend/bridge/pyodide_bridge.ts
 // Singleton qui gère la communication avec le Web Worker Pyodide
 
+import { sqlBridge } from "./sql_bridge"
+
 type PyodideStatus = "idle" | "loading" | "ready" | "error"
 type StatusListener = (status: PyodideStatus) => void
 
@@ -18,7 +20,6 @@ class PyodideBridge {
     }>()
     private statusListeners = new Set<StatusListener>()
 
-    /** Initialise le Web Worker et charge Pyodide */
     async init(): Promise<void> {
         if (this.status === "ready" || this.status === "loading") return
 
@@ -29,11 +30,26 @@ class PyodideBridge {
             { type: "module" }
         )
 
-        this.worker.onmessage = (event) => {
-            const { id, type, data, error, status } = event.data
+        this.worker.onmessage = async (event) => {
+            const { id, type, data, error, status, results } = event.data
 
             if (type === "status" && status) {
                 this.setStatus(status)
+                return
+            }
+
+            if (type === "sql") {
+                const pending = this.pendingRequests.get(id)
+                if (pending) {
+                    this.pendingRequests.delete(id)
+                    try {
+                        const query = data as string
+                        const queryResults = await sqlBridge.execute(query)
+                        this.worker!.postMessage({ id, type: "sql_result", results: queryResults })
+                    } catch (err) {
+                        this.worker!.postMessage({ id, type: "error", error: String(err) })
+                    }
+                }
                 return
             }
 
@@ -53,10 +69,8 @@ class PyodideBridge {
             console.error("[PyodideBridge] Worker error:", err)
         }
 
-        // Demande au worker de charger Pyodide
         this.worker.postMessage({ id: "init", type: "init" })
 
-        // Attend que le status passe à "ready" ou "error"
         return new Promise((resolve, reject) => {
             const unsubscribe = this.onStatusChange((s) => {
                 if (s === "ready") { unsubscribe(); resolve() }
@@ -65,7 +79,6 @@ class PyodideBridge {
         })
     }
 
-    /** Exécute du code Python et retourne le résultat */
     async runPython<T = unknown>(code: string): Promise<T> {
         if (!this.worker || this.status !== "ready") {
             throw new Error("Pyodide not ready")
@@ -81,7 +94,6 @@ class PyodideBridge {
         })
     }
 
-    /** Appelle une fonction de api.py */
     async callApi<T = unknown>(functionName: string, args: unknown[] = []): Promise<T> {
         if (!this.worker || this.status !== "ready") {
             throw new Error("Pyodide not ready")
@@ -97,12 +109,10 @@ class PyodideBridge {
         })
     }
 
-    /** Retourne le status actuel */
     getStatus(): PyodideStatus {
         return this.status
     }
 
-    /** S'abonne aux changements de status. Retourne la fonction unsubscribe. */
     onStatusChange(listener: StatusListener): () => void {
         this.statusListeners.add(listener)
         return () => this.statusListeners.delete(listener)
@@ -114,6 +124,5 @@ class PyodideBridge {
     }
 }
 
-// Singleton exporté
 export const pyodideBridge = new PyodideBridge()
 export type { PyodideStatus }

@@ -1,7 +1,9 @@
 # Capacitor Connection
 # Implémentation SQLite pour mobile via Pyodide + Capacitor bridge
 
+import json
 import logging
+import uuid
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -10,66 +12,101 @@ logger = logging.getLogger(__name__)
 class CapacitorConnection:
     """
     Connexion SQLite pour mobile (Pyodide + Capacitor).
-    Utilise le bridge JavaScript pour accéder à SQLite natif.
+    Utilise le bridge JavaScript pour exécuter les requêtes via le main thread.
     """
 
     def __init__(self):
-        self._db = None
-        self._connect()
+        self._pending: dict[str, Any] = {}
+        self._init_bridge()
 
-    def _connect(self) -> None:
-        """Établit la connexion via le bridge JS."""
-        try:
-            # Import Pyodide pour accéder à l'objet global JS
-            import pyodide
-            js = pyodide.globals.get("window")
-            
-            if js and hasattr(js, "Capacitor"):
-                # Plugin Capacitor SQLite
-                from js import Capacitor, Plugins
-                self._db = Plugins.SQLite
-                # Ouvrir la base de données
-                # Note: à adapter selon la config Capacitor
-            else:
-                # Fallback: utiliser OPFS (File System API)
-                logger.warning("Capacitor non disponible, utilisation de OPFS")
-                self._use_opfs_fallback()
-        except Exception as e:
-            logger.error(f"Erreur connexion Capacitor: {e}")
-            self._use_opfs_fallback()
-
-    def _use_opfs_fallback(self) -> None:
-        """Fallback vers OPFS si Capacitor non disponible."""
-        # Utilise la version WASM de SQLite
-        pass
+    def _init_bridge(self) -> None:
+        """Initialise le bridge JS pour communiquer avec Capacitor."""
+        import js
+        self._window = js.window
 
     def execute(self, query: str, params: tuple = ()) -> Any:
-        """Exécute une requête SQL."""
-        # À implémenter avec le bridge Capacitor
-        raise NotImplementedError("À implémenter avec le bridge JS")
+        """Exécute une requête SQL et retourne le curseur."""
+        results = self._execute_sync(query, params)
+        return _Cursor(results)
+
+    def _execute_sync(self, query: str, params: tuple = ()) -> list[dict]:
+        """Exécute une requête SQL de manière synchrone via le bridge."""
+        import asyncio
+        from pyodide.ffi import create_proxy
+
+        results = []
+        query_id = str(uuid.uuid4())
+
+        def on_result(event):
+            results.extend(event.data.get("results", []))
+
+        try:
+            proxy = create_proxy(on_result)
+            self._window.addEventListener(f"sql_result_{query_id}", proxy)
+
+            self._window.postMessage({
+                "id": query_id,
+                "type": "sql",
+                "query": query,
+                "params": list(params)
+            }, "*")
+
+            import time
+            timeout = 5.0
+            start = time.time()
+            while len(results) == 0 and (time.time() - start) < timeout:
+                pass
+
+            self._window.removeEventListener(f"sql_result_{query_id}", proxy)
+            return results
+
+        except Exception as e:
+            logger.error(f"Erreur execute: {e}")
+            return []
 
     def commit(self) -> None:
-        """Valide les modifications."""
-        # Commit automatique pour Capacitor
+        """Valide les modifications (no-op pour Capacitor)."""
         pass
 
     def rollback(self) -> None:
-        """Annule les modifications."""
+        """Annule les modifications (no-op pour Capacitor)."""
         pass
 
     def close(self) -> None:
         """Ferme la connexion."""
-        self._db = None
+        pass
 
     def fetch_all(self, query: str, params: tuple = ()) -> list[dict]:
         """Exécute un SELECT et retourne les résultats."""
-        # À implémenter avec le bridge Capacitor
-        # Exemple:
-        # result = await self._db.execute({query, values: list(params)})
-        # return [dict(row) for row in result]
-        raise NotImplementedError("À implémenter avec le bridge JS")
+        return self._execute_sync(query, params)
 
     def fetch_one(self, query: str, params: tuple = ()) -> Optional[dict]:
         """Exécute un SELECT et retourne une seule ligne."""
         results = self.fetch_all(query, params)
         return results[0] if results else None
+
+
+class _Cursor:
+    """Cursor factice pour compatibilité avec le code existant."""
+
+    def __init__(self, results: list[dict]):
+        self.results = results
+        self._index = 0
+
+    def fetchall(self) -> list[dict]:
+        return self.results
+
+    def fetchone(self) -> Optional[dict]:
+        if self._index < len(self.results):
+            result = self.results[self._index]
+            self._index += 1
+            return result
+        return None
+
+
+def get_connection() -> CapacitorConnection:
+    """Factory qui retourne la connexion Capacitor."""
+    return CapacitorConnection()
+
+
+__all__ = ['CapacitorConnection', 'get_connection']
