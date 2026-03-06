@@ -2,6 +2,7 @@
 Utilitaires de conversion partagés entre tous les domaines.
 Utilisés notamment lors des imports CSV/OFX pour normaliser
 les valeurs brutes avant de construire les objets métier.
+Compatible Pyodide (pas de pandas).
 """
 
 import logging
@@ -9,7 +10,6 @@ import re
 from datetime import datetime, date
 from typing import Any, Optional, Type, Union
 
-import pandas as pd
 from dateutil import parser
 
 logger = logging.getLogger(__name__)
@@ -28,6 +28,17 @@ def normalize_text(text: Any) -> str:
     return " ".join(str(text).split()).title()
 
 
+def _is_null(value: Any) -> bool:
+    """Check if value is null/empty. Compatible with Pyodide."""
+    if value is None:
+        return True
+    if isinstance(value, float):
+        return value != value
+    if isinstance(value, (str, int)):
+        return str(value).strip() == ""
+    return False
+
+
 def safe_convert(
         value: Any,
         convert_type: Type = float,
@@ -39,7 +50,7 @@ def safe_convert(
     Pour float : détecte le format européen (1.234,56) vs américain (1,234.56).
     """
     try:
-        if pd.isna(value) or value is None or str(value).strip() == "":
+        if _is_null(value):
             return default
 
         value_str = str(value).strip()
@@ -56,10 +67,8 @@ def safe_convert(
             last_dot = value_str.rfind(".")
 
             if last_comma > last_dot:
-                # Format européen : 1.234,56
                 value_str = value_str.replace(".", "").replace(",", ".")
             elif last_dot > last_comma:
-                # Format américain : 1,234.56
                 value_str = value_str.replace(",", "")
             else:
                 if "," in value_str:
@@ -96,11 +105,8 @@ def safe_date_convert(
     if date_str is None or str(date_str).strip() == "":
         return default
 
-    try:
-        if pd.isna(date_str):
-            return default
-    except (TypeError, ValueError):
-        pass
+    if _is_null(date_str):
+        return default
 
     date_str = str(date_str).strip()
     formats = [
