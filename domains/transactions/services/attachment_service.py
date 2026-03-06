@@ -69,33 +69,34 @@ class AttachmentService:
                 return matches[0]
         return None
     @staticmethod
-    def get_attachments( transaction_id: int) -> List[TransactionAttachment]:
+    def get_attachments(transaction_id: int) -> List[TransactionAttachment]:
         """Récupère les pièces jointes d'une transaction."""
-        df = attachment_repository.get_all_attachments()
-        if df.empty:
+        attachments = attachment_repository.get_all_attachments()
+        if not attachments:
             return []
-        filtered = df[df['transaction_id'] == transaction_id]
+
+        filtered = [a for a in attachments if a.get('transaction_id') == transaction_id]
         return [
             TransactionAttachment(
-                id=int(row['id']),
-                transaction_id=int(row['transaction_id']),
-                file_name=row['file_name'],
-                file_path=row.get('file_path', ''),
-                file_type=row.get('file_type'),
-                upload_date=row['upload_date'],
+                id=int(a['id']),
+                transaction_id=int(a['transaction_id']),
+                file_name=a['file_name'],
+                file_path=a.get('file_path', ''),
+                file_type=a.get('file_type'),
+                upload_date=a['upload_date'],
             )
-            for _, row in filtered.iterrows()
+            for a in filtered
         ]
 
     def delete_attachment(self, attachment_id: int) -> bool:
         """Supprime la métadonnée en BDD et le fichier physique si trouvé."""
         try:
-            df = attachment_repository.get_all_attachments()
-            row = df[df['id'] == attachment_id]
-            if row.empty:
+            attachments = attachment_repository.get_all_attachments()
+            attachment = next((a for a in attachments if a.get('id') == attachment_id), None)
+            if not attachment:
                 return False
 
-            file_name = row.iloc[0]['file_name']
+            file_name = attachment['file_name']
 
             if not attachment_repository.delete_attachment(attachment_id):
                 return False
@@ -116,11 +117,11 @@ class AttachmentService:
 
     def get_file_content(self, attachment_id: int) -> Optional[bytes]:
         """Lit le contenu binaire d'une pièce jointe."""
-        df = attachment_repository.get_all_attachments()
-        row = df[df['id'] == attachment_id]
-        if row.empty:
+        attachments = attachment_repository.get_all_attachments()
+        attachment = next((a for a in attachments if a.get('id') == attachment_id), None)
+        if not attachment:
             return None
-        physical = self.find_file(row.iloc[0]['file_name'])
+        physical = self.find_file(attachment['file_name'])
         if physical and physical.exists():
             return physical.read_bytes()
         return None
