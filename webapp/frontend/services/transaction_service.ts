@@ -7,7 +7,7 @@ import { pyodideBridge } from "../bridge/pyodide_bridge"
 
 export interface TransactionJS {
     id: number
-    type: "Dépense" | "Revenu" | "Transfert+" | "Transfert-"
+    type: "Dépense" | "Revenu" 
     categorie: string
     sous_categorie: string | null
     description: string | null
