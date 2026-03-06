@@ -37,6 +37,9 @@ async function initPyodide() {
             indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/",
         })
 
+        // Charger les packages Python supplémentaires
+        await pyodide.loadPackage("dateutil")
+
         // Load api.py
         const apiResponse = await fetch("/api.py")
         const apiCode = await apiResponse.text()
