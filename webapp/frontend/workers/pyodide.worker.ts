@@ -4,18 +4,21 @@
 
 interface WorkerMessage {
     id: string
-    type: "init" | "run" | "call"
+    type: "init" | "run" | "call" | "sql"
     code?: string
     function?: string
     args?: unknown[]
+    query?: string
+    params?: unknown[]
 }
 
 interface WorkerResponse {
     id: string
-    type: "status" | "result" | "error"
+    type: "status" | "result" | "error" | "sql_result"
     status?: "loading" | "ready" | "error"
     data?: unknown
     error?: string
+    results?: unknown[]
 }
 
 let pyodide: any = null
@@ -37,10 +40,8 @@ async function initPyodide() {
             indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/",
         })
 
-        // Charger les packages Python supplémentaires
         await pyodide.loadPackage("dateutil")
 
-        // Load api.py
         const apiResponse = await fetch("/api.py")
         const apiCode = await apiResponse.text()
         await pyodide.runPythonAsync(apiCode)
@@ -87,7 +88,7 @@ async function callApiFunction(id: string, fnName: string, args: unknown[] = [])
 }
 
 self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
-    const { id, type, code, function: fnName, args } = event.data
+    const { id, type, code, function: fnName, args, query, params } = event.data
 
     switch (type) {
         case "init":
@@ -98,6 +99,9 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
             break
         case "call":
             if (fnName) await callApiFunction(id, fnName, args)
+            break
+        case "sql":
+            postResponse({ id, type: "sql_result", results: [] })
             break
         default:
             postResponse({ id, type: "error", error: `Unknown message type: ${type}` })
