@@ -1,59 +1,57 @@
 # 🧱 Shared (Bibliothèque Partagée)
 
-Bienvenue dans la **boîte à outils** de FinBoard.
-Ce dossier contient tout le code qui est utilisé par **plusieurs domaines** (Transactions & Portfolio).
+> **Boîte à outils** utilisée par les domaines métier (Transactions, etc.)
 
-> **Règle d'Or** : Si une fonction est utilisée dans `domains/transactions` ET `domains/portfolio`, elle doit venir ici.
-> Si elle n'est utilisée que dans un seul domaine, elle doit rester dans ce domaine.
+> 📍 Pour le flux transactions : voir [LOGIC_FLOW.md](../domains/transactions/LOGIC_FLOW.md)
 
 ## 🗺️ Carte du Module
 
-| Dossier         | Rôle                                                 | Documentation                         |
-|:----------------|:-----------------------------------------------------|:--------------------------------------|
-| **`database/`** | **Connexion SQL** (Gestionnaire de connexion unique) | [🗄️ Lire la doc](database/README.md) |
-| **`services/`** | **Services Transverses** (Fichiers, Sécurité)        | [⚙️ Lire la doc](services/README.md)  |
-| **`ui/`**       | **Composants UI** (Toasts, Badges, Styles)           | [🎨 Lire la doc](ui/README.md)        |
+| Dossier | Rôle | Documentation |
+|:---------|:-----|:-------------|
+| **`database/`** | Connexion SQL avec abstraction Desktop/Mobile | [🗄️ Lire la doc](database/README.md) |
+| **`services/`** | Services Transverses | [⚙️ Lire la doc](services/README.md) |
 
 ---
 
-## 🏗️ Architecture Transverse
+## 🏗️ Architecture
 
-`Shared` est la fondation sur laquelle reposent les domaines.
+### Abstraction IDBConnection
+
+Pour supporter à la fois Desktop et Mobile (Pyodide) :
 
 ```mermaid
 graph TD
-    subgraph "Domaines Métier"
-        Trans[Transactions]
-        Port[Portfolio]
+    subgraph "Python (Pyodide)"
+        Repo[Repository]
     end
     
-    subgraph "Shared (Fondation)"
-        DB[Database Connection]
-        UI[UI Components]
-        File[File Service]
+    subgraph "shared/database/"
+        IDB[IDBConnection\n(interface)]
+        Desk[DesktopConnection\n(WAL + sqlite3)]
+        Cap[CapacitorConnection\n(bridge JS)]
     end
     
-    Trans -->|Utilise| DB
-    Trans -->|Utilise| UI
-    Trans -->|Utilise| File
+    Repo -->|execute| IDB
+    IDB -->|Desktop| Desk
+    IDB -->|Mobile| Cap
     
-    Port -->|Utilise| DB
-    Port -->|Utilise| UI
-    
-    style Trans fill:#e3f2fd,stroke:#1565c0
-    style Port fill:#e8f5e9,stroke:#2e7d32
-    style Shared fill:#fff,stroke:#333,stroke-dasharray: 5 5
+    Desk -->|SQLite| DB1[(SQLite\nlocal)]
+    Cap -->|Plugin| DB2[(SQLite\nCapacitor)]
 ```
+
+### Règles
+
+1. **Desktop** : `sqlite3` stdlib avec WAL
+2. **Mobile** : `@capacitor-community/sqlite` (pas de WAL → DELETE ou MEMORY)
+
+---
 
 ## 🚀 Guide Rapide
 
 ### Je cherche...
 
-- **Où est configurée la connexion SQLite (WAL, Timeout) ?**
+- **L'abstraction SQLite (Desktop/Mobile) ?**
   👉 [`database/connection.py`](database/connection.py)
 
-- **Comment afficher une notification "Succès" ?**
-  👉 [`ui/toast_components.py`](ui/toast_components.py)
-
-- **La logique qui déplace les fichiers quand on change une catégorie ?**
-  👉 [`services/file_service.py`](services/file_service.py)
+- **Comment est gérée la persistance des fichiers ?**
+  👉 [`services/file_service.py`](services/file_service.py) → à抽象 vers `IStorage`

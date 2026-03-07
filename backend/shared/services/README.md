@@ -1,43 +1,29 @@
 # ⚙️ Shared Services
 
-Services utilitaires ne dépendant pas d'un domaine métier spécifique.
+> Services utilitaires transversaux.
 
 ## 📂 File Service (`file_service.py`)
 
-Ce service est le **Gestionnaire de Fichiers Intelligent** de FinBoard. Il fait le lien entre une transaction (en base)
-et ses fichiers (sur le disque).
+> **À abstrayer** pour mobile via `IStorage` interface.
 
-### Fonctionnalités Clés
+### Fonctionnalités
 
-#### 1. Recherche Intelligente (`trouver_fichiers_associes`)
+1. **Recherche de fichiers** : Retrouver les tickets associés à une transaction
+2. **Déplacement** : Déplacer les fichiers quand la catégorie change
+3. **Suppression** : Nettoyer les fichiers orphelins
 
-Il est capable de retrouver le ticket de caisse d'une transaction, même si le système de nommage a changé.
+### Pour Mobile
 
-- **Priorité 1 (Moderne)** : Cherche `{ID_TRANSACTION}.pdf` dans le dossier.
-- **Priorité 2 (Legacy)** : Cherche dans `Dossier/Categorie/SousCategorie/`.
+```python
+# Abstraction requise
+# shared/storage/istorage.py
+class IStorage:
+    def save(self, data: bytes, path: str) -> str: ...
+    def load(self, path: str) -> bytes: ...
 
-#### 2. Déménagement Automatique (`deplacer_fichiers_associes`)
-
-Si vous modifiez la catégorie d'une transaction dans l'interface :
-
-- **Avant** : Transaction "Resto" dans `Alimentation/Divers`.
-- **Après** : Transaction "Resto" dans `Alimentation/Restaurant`.
-- **Action** : Le fichier est déplacé physiquement sur le disque pour garder une organisation propre.
-
-#### 3. Nettoyage (`supprimer_fichiers_associes`)
-
-Si vous supprimez une transaction, ses fichiers sont supprimés. Si le dossier devient vide, le dossier est supprimé
-aussi. **FinBoard est auto-nettoyant.**
-
-```mermaid
-graph TD
-    User[Utilisateur] -->|Change Catégorie| UI[Interface]
-    UI -->|Appelle| FS[FileService]
-    
-    FS -->|1. Cherche| File[Fichier Actuel]
-    FS -->|2. Crée| Dir[Nouveau Dossier]
-    FS -->|3. Déplace| Move[Fichier Déplacé]
-    FS -->|4. Nettoie| Clean[Supprime vieux dossier si vide]
-    
-    style FS fill:#e1f5fe,stroke:#0277bd
+# Implémentations :
+# - DesktopStorage (pathlib.Path)
+# - CapacitorStorage (@capacitor/filesystem)
 ```
+
+> 💡 En mobile, utiliser `@capacitor/filesystem` au lieu de chemins locaux

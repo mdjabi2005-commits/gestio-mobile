@@ -1,7 +1,12 @@
 # 🔄 Moteur de Récurrence
 
-Ce module est le **cœur temporel** de l'application. Il gère tout ce qui se répète dans le temps (Abonnements Netflix,
-Loyers, Salaires...).
+> **Cœur temporel** de l'application. Gère tout ce qui se répète (Abonnements, Loyers, Salaires...).
+
+## 🎯 Objectif
+
+Transformer une règle statique ("Loyer 500€ tous les 5 du mois") en transactions concrètes.
+
+> 💡 **Inchangé** pour la version mobile — même logique, même table SQLite
 
 ## 🎯 Objectif
 

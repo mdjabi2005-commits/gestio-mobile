@@ -1,36 +1,49 @@
 # 🗄️ Shared Database
 
-Ce module gère **l'unique point d'entrée** vers le fichier SQLite.
+> **Point d'entrée SQLite** pour Mobile (Pyodide + Capacitor)
 
-## 🔌 Gestion de Connexion (`connection.py`)
+> 📍 Position dans le flux : voir [LOGIC_FLOW.md](../../domains/transactions/LOGIC_FLOW.md)
 
-Gérer des accès concurrents à SQLite (ex: Streamlit qui rafraîchit + un script d'import) est délicat. Ce module
-encapsule les bonnes pratiques.
+```mermaid
+graph TD
+    subgraph "Ce module"
+        Cap[CapacitorConnection]
+    end
+    
+    subgraph "@capacitor-community/sqlite"
+        SQLite[("SQLite\nnatif")]
+    end
+    
+    Cap -->|execute| SQLite
+    
+    style Cap fill:#e1f5fe,stroke:#0277bd
+```
 
-### Configuration "Robustesse"
+## 🔌 CapacitorConnection (SEULEMENT)
 
-La fonction `get_db_connection()` applique automatiquement ces réglages critiques :
-
-1. **WAL Mode (`PRAGMA journal_mode = WAL`)** :
-    - Permet la lecture et l'écriture simultanées (indispensable pour les apps web).
-    - Évite les erreurs `Database is locked`.
-2. **Foreign Keys (`PRAGMA foreign_keys = ON`)** :
-    - Active l'intégrité référentielle (SQLite ne le fait pas par défaut !).
-    - Si vous supprimez une Catégorie utilisée par une Transaction, SQLite bloquera (ou propagera) selon votre schéma.
-3. **Busy Timeout (`30000ms`)** :
-    - Si la base est verrouillée, on attend 30 secondes avant de planter.
-
-### Utilisation Type
+> ⚠️ **vmobile** = Mobile uniquement. Pas de double abstraction.
 
 ```python
-from shared.database.connection import get_db_connection
+from shared.database import get_connection
 
-def ma_fonction():
-    conn = get_db_connection()
-    try:
-        # Faire des choses...
-        pass
-    finally:
-        # Toujours fermer ! (Ou utiliser un Context Manager si dispo)
-        conn.close()
+conn = get_connection()
+results = conn.execute("SELECT * FROM transactions", ())
+rows = conn.fetch_all("SELECT * FROM transactions", ())
 ```
+
+### Configuration
+
+- **SQLite** : `@capacitor-community/sqlite` (natif)
+- **Journal mode** : `DELETE` ou `MEMORY` (pas de WAL sur mobile)
+- **Foreign Keys** : activées
+
+### Méthodes
+
+| Méthode | Description |
+|---------|-------------|
+| `execute(query, params)` | Exécute une requête et retourne un cursor |
+| `fetch_all(query, params)` | Exécute un SELECT et retourne `list[dict]` |
+| `fetch_one(query, params)` | Exécute un SELECT et retourne une seule ligne |
+| `close()` | Ferme la connexion |
+
+> ⚠️ **Pas de Pandas dans Pyodide** — utiliser `fetch_all()` ou listes de dictionnaires

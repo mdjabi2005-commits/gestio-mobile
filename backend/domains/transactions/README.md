@@ -1,84 +1,108 @@
 # 💰 Domaine Transactions
 
-Bienvenue dans le centre nerveux de l'application. Ce module gère **toutes** les opérations financières (dépenses,
-revenus, virements).
+> Centre nerveux de l'application. Gère toutes les opérations financières (dépenses, revenus, virements).
+
+> 📍 **Voir le flux complet** : [LOGIC_FLOW.md](LOGIC_FLOW.md)
 
 ## 🗺️ Carte du Module
 
-Ce dossier est divisé en sous-modules spécialisés. Cliquez sur les liens pour accéder à la documentation détaillée de
-chaque partie :
-
-| Dossier           | Rôle                                                     | Documentation                             |
-|:------------------|:---------------------------------------------------------|:------------------------------------------|
-| **`pages/`**      | **Contrôleurs** (Points d'entrée de l'UI)                | [📄 Lire la doc](pages/README.md)         |
-| **`view/`**       | **Interface** (Composants visuels, Tableaux, Graphiques) | [🎨 Lire la doc](view/README.md)          |
-| **`database/`**   | **Données** (Schéma SQL, Repositories)                   | [🗄️ Lire la doc](database/README.md)     |
-| **`recurrence/`** | **Moteur Temporel** (Abonnements, Échéances)             | [🔄 Lire la doc](recurrence/README.md)    |
-| **`ocr/`**        | **Intelligence Artificielle** (Scan de tickets/PDF)      | [👁️ Lire la doc](ocr/services/README.md) |
+| Dossier | Rôle | Documentation |
+|:---------|:-----|:-------------|
+| **`database/`** | Données (Schéma SQL, Repositories) | [📄 Lire la doc](database/README.md) |
+| **`services/`** | Logique métier | [⚙️ Lire la doc](services/README.md) |
+| **`recurrence/`** | Moteur Temporel (Abonnements, Échéances) | [🔄 Lire la doc](recurrence/README.md) |
+| **`ocr/`** | Intelligence Artificielle (Scan tickets/PDF) | [👁️ Lire la doc](ocr/services/README.md) |
+| **`view/`** | Composants visuels React | [🎨 Lire la doc](view/README.md) |
 
 ---
 
-## 🏗️ Architecture Globale
+## 🏗️ Architecture
 
-Comment tout cela fonctionne ensemble ? Voici le flux de données principal :
+### Avec React + Pyodide
 
 ```mermaid
 graph TD
     User((Utilisateur))
     
-    subgraph "Interface (UI)"
-        Pages["📂 Pages\n(add.py, view.py)"]
-        View["🎨 View Components\n(Table, Calendar...)"]
+    subgraph "webapp/ (React)"
+        UI["📂 UI Components\n(Button, Card, Table)"]
+        Hooks["⚡ Frontend Hooks\n(useTransactions, useScan)"]
     end
     
-    subgraph "Logique Métier"
-        OCR[👁️ Moteur OCR]
-        Recurrence[🔄 Moteur Récurrence]
+    subgraph "Pyodide Web Worker"
+        Python["🐍 Python\n(Pydantic, Services)"]
+    end
+    
+    subgraph "backend/ (Python)"
+        Services["⚙️ Services\n(transaction_service)"]
+        Repo["🗄️ Repositories\n(CRUD)"]
     end
     
     subgraph "Données"
-        Repo[🗄️ Repositories]
-        DB[(Base de Données)]
+        DB[(SQLite)]
     end
     
-    %% Flux Utilisateur
-    User -->|Interagit| Pages
-    Pages -->|Utilise| View
-    
-    %% Flux Logique
-    Pages -->|Envoie Fichier| OCR
-    Pages -->|Gère| Recurrence
-    
-    %% Flux Données
-    Pages -->|CRUD| Repo
-    OCR -->|Extrait Données| Repo
-    Recurrence -->|Génère Auto| Repo
-    
+    User -->|Interagit| UI
+    UI -->|Appelle| Hooks
+    Hooks -->|await| Python
+    Python -->|Appelle| Services
+    Services -->|CRUD| Repo
     Repo <-->|SQL| DB
     
-    %% Styles
-    style Pages fill:#fff9c4,stroke:#fbc02d
-    style View fill:#e8f5e9,stroke:#2e7d32
+    style UI fill:#fff9c4,stroke:#fbc02d
+    style Python fill:#e1f5fe,stroke:#0277bd
+    style Services fill:#e8f5e9,stroke:#2e7d32
     style Repo fill:#e1f5fe,stroke:#0277bd
-    style OCR fill:#f3e5f5,stroke:#8e24aa
-    style Recurrence fill:#fff3e0,stroke:#ef6c00
 ```
+
+---
+
+## 🔑 Règles Importantes
+
+1. **Pas de SQL dans webapp/** — tout passe par le Repository Python
+2. **Pyodide dans Web Worker** — toujours async (`await pyodide.runPythonAsync()`)
+3. **Pas de Pandas dans Pyodide** — utiliser `cursor.fetchall()` ou listes de dictionnaires
+4. **OCR** : ML Kit (offline) + Azure Vision API (online)
+
+---
+
+## 📁 Structure
+
+```
+transactions/
+├── database/
+│   ├── model.py              # Transaction (Pydantic)
+│   ├── model_recurrence.py  # Récurrence
+│   ├── model_attachment.py   # Pièce jointe
+│   ├── repository.py         # CRUD transactions
+│   ├── repository_recurrence.py
+│   ├── repository_attachment.py
+│   ├── schema.py            # Migrations tables
+│   └── constants.py         # Catégories
+│
+├── services/
+│   ├── transaction_service.py
+│   └── attachment_service.py
+│
+├── recurrence/
+│   └── recurrence_service.py
+│
+└── ocr/
+    ├── core/                # Moteurs OCR
+    └── services/            # Service OCR + patterns
+```
+
+---
 
 ## 🚀 Guide Rapide
 
 ### Je veux modifier...
 
-- **L'apparence du tableau des transactions ?**
-  👉 [`view/components/transaction_table.py`](view/components/transaction_table.py) (Doc: [
-  `view/README.md`](view/README.md))
-
-- **La façon dont on ajoute une transaction ?**
-  👉 [`pages/add.py`](pages/add.py) (Doc: [`pages/README.md`](pages/README.md))
+- **L'ajout d'une transaction ?**
+  👉 [`services/transaction_service.py`](services/transaction_service.py)
 
 - **La détection des prix sur les tickets ?**
-  👉 [`ocr/services/pattern_manager.py`](ocr/services/pattern_manager.py) (Doc: [
-  `ocr/services/README.md`](ocr/services/README.md))
+  👉 [`ocr/services/pattern_manager.py`](ocr/services/pattern_manager.py)
 
 - **Le calcul des mensualités d'abonnement ?**
-  👉 [`recurrence/recurrence_service.py`](recurrence/recurrence_service.py) (Doc: [
-  `recurrence/README.md`](recurrence/README.md))
+  👉 [`recurrence/recurrence_service.py`](recurrence/recurrence_service.py)

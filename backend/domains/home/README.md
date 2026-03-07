@@ -1,33 +1,25 @@
 # Module Home - Landing Page
 
-**Dernière mise à jour** : 12 Février 2026
-
----
+> Page d'accueil de l'application mobile React.
 
 ## 🎯 Vue d'Ensemble
 
-Le module **Home** est une simple page d'atterrissage ("Landing Page") pour l'application. Elle sert de point d'entrée
-pour orienter l'utilisateur vers les différentes fonctionnalités (Ajout de transaction, Consultation, etc.).
+Le module **Home** est la page d'atterrissage ("Landing Page") de l'application mobile.
+Elle affiche le tableau de bord avec KPIs et oriente vers les fonctionnalités.
 
----
-
-## 📄 Fichiers
-
-### Structure
+## 📄 Structure
 
 ```
 domains/home/
-├── __init__.py
-├── pages/
-│   └── home.py          # Page d'accueil simple
+└── pages/
+    └── home.py          # Point d'entrée (utilisé par Pyodide)
 ```
 
-### `home.py`
-
-Affiche un message de bienvenue et des raccourcis vers les actions principales (Ajouter, Voir Transactions).
+> 💡 L'UI est dans **webapp/ui/domains/home/**
 
 ---
 
-## 📦 Dépendances
+## 📦 Notes
 
-Aucune dépendance complexe (uniquement `streamlit`).
+- **Frontend** : React + Tailwind CSS
+- **Données** : Via Pyodide (Python service)
